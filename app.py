@@ -2,10 +2,12 @@
 import sys
 import dash
 import dash_core_components as dcc
-import dash_html_components as html
+from dash import  html
 import plotly.graph_objs as go
 import math
 import json
+from dash.exceptions import PreventUpdate
+
 
 import numpy as np
 
@@ -14,7 +16,7 @@ from metpy.units import units, concatenate, check_units
 
 from itertools import cycle
 
-app = dash.Dash('Orographic rainfall demo app', static_folder='static')
+app = dash.Dash('Orographic rainfall demo app')
 server = app.server
 value_range = [-5, 5]
 ANIM_DELTAT = 500
@@ -38,7 +40,7 @@ sym_parcel = (50, 'y-right-open', 'Air parcel')
 
 banner = html.Div([
     html.H2("Orographic rainfall demo"),
-    html.Img(src="/static/apLogo2.png"),
+    html.Img(src=app.get_asset_url("apLogo2.png")),
 ], className='banner')
 
 row1 = html.Div([  # row 1 start ([
@@ -80,7 +82,7 @@ slider1 = html.Div(
             step=250,
             value=1500,
             marks={
-                i: i for i in range(
+                i: str(i) for i in range(
                     0,
                     MAXMNHT + 1,
                     1000)}),
@@ -96,7 +98,7 @@ slider2 = html.Div(
             step=5,
             value=40,
             marks={
-                i: i for i in range(
+                i: str(i) for i in range(
                     0,
                     100 + 1,
                     20)}),
@@ -108,7 +110,7 @@ slider3 = html.Div([html.Div('Temperature of air (°C)'),
                                max=50,
                                step=1,
                                value=30,
-                               marks={i: i for i in range(-20,
+                               marks={i: str(i) for i in range(-20,
                                                           50 + 1,
                                                           10)},
                                ),
@@ -156,6 +158,10 @@ def disable_counter(n_intervals):
      ],
 )
 def reset_counter(height, temp, humid, n_clicks):
+    if n_clicks is None:
+        # prevent the None callbacks is important with the store component.
+        # you don't want to update the store for nothing.
+        raise PreventUpdate
     return 0
 
 
@@ -180,7 +186,7 @@ def calculate_set(height, temp, humid):
      ]
 )
 def update_RHElGraph(counterval, calculation_store_data):
-    windy, windx, mtny, TC, RH, trace, LCL = json.loads(calculation_store_data)
+    windy, windx, mtny, TC, RH, trace, LCL = load_json(calculation_store_data)
     length = min([counterval, len(XVALUES)])
 
     return {
@@ -209,7 +215,7 @@ def update_RHElGraph(counterval, calculation_store_data):
      ]
 )
 def update_TElGraph(counterval, calculation_store_data):
-    windy, windx, mtny, TC, RH, trace, LCL = json.loads(calculation_store_data)
+    windy, windx, mtny, TC, RH, trace, LCL = load_json(calculation_store_data)
     length = min([counterval, len(XVALUES)])
     tr = [min(TC) - 2, max(TC) + 2]
     return {
@@ -230,6 +236,12 @@ def update_TElGraph(counterval, calculation_store_data):
     }
 
 
+def load_json(calculation_store_data):
+    if calculation_store_data:
+        return json.loads(calculation_store_data)
+    else: 
+        raise  PreventUpdate
+
 @app.callback(
     dash.dependencies.Output('graph-2', 'figure'),
     [dash.dependencies.Input('ncounter', 'n_intervals')
@@ -238,7 +250,7 @@ def update_TElGraph(counterval, calculation_store_data):
      ]
 )
 def update_mainGraph(counterval, calculation_store_data):
-    windy, windx, mtny, TC, RH, trace, LCL = json.loads(calculation_store_data)
+    windy, windx, mtny, TC, RH, trace, LCL = load_json(calculation_store_data)
     length = min([counterval, len(XVALUES)])
     x = [windx[length - 1]]
     y = [windy[length - 1]]
@@ -367,7 +379,7 @@ def atmCalc(height, temp, humid):
 
     temp_ = temp * units.degC
     initp = mc.height_to_pressure_std(windy[0] * units.meters)
-    dewpt = mc.dewpoint_rh(temp_, humid / 100.)
+    dewpt = mc.dewpoint_from_relative_humidity(temp_, humid / 100.)
     lcl_ = mc.lcl(initp, temp_, dewpt, max_iters=50, eps=1e-5)
     LCL = mc.pressure_to_height_std(lcl_[0])
 
@@ -380,14 +392,14 @@ def atmCalc(height, temp, humid):
 
     pressures = mc.height_to_pressure_std(windy * units.meters)
 
-    wvmr0 = mc.mixing_ratio_from_relative_humidity(humid / 100., temp_, initp)
+    wvmr0 = mc.mixing_ratio_from_relative_humidity(initp , temp_, humid / 100.)
 
     # now calculate the air parcel temperatures and RH at each position
     if (lcl_[0] <= min(pressures)):
         T = mc.dry_lapse(pressures, temp_)
         RH = [
             mc.relative_humidity_from_mixing_ratio(
-                wvmr0, t, p) for t, p in zip(
+                p, t, wvmr0) for t, p in zip(
                 T, pressures)]
     else:
         mini = np.argmin(pressures)
@@ -402,10 +414,10 @@ def atmCalc(height, temp, humid):
         T = concatenate((T1, T2[1:]))
         wvmrtop = mc.saturation_mixing_ratio(pressures[mini], T[mini])
 
-        RH = [mc.relative_humidity_from_mixing_ratio(wvmr0, *tp) if tp[1] > lcl_[
+        RH = [mc.relative_humidity_from_mixing_ratio(*tp, wvmr0) if tp[0] > lcl_[
             0] and i <= mini else 1.0 if i < mini else
-            mc.relative_humidity_from_mixing_ratio(wvmrtop, *tp)
-            for i, tp in enumerate(zip(T, pressures))]
+            mc.relative_humidity_from_mixing_ratio(*tp, wvmrtop)
+            for i, tp in enumerate(zip( pressures, T))]
 
     RH = concatenate(RH)
     return windx, mtny, windy, lcl_, LCL, T.to("degC"), RH
@@ -435,7 +447,8 @@ for css in external_css:
     app.css.append_css({"external_url": css})
 
 if __name__ == '__main__':
-    app.run_server(debug=True, use_debugger=False, use_reloader=False)
+    app.run_server(debug=False)
+    #, use_debugger=False, use_reloader=False)
     # d=calculate_set(3.897692586860594*1000, 25, 20)
     # d=calculate_set(1500, 25, 50)
     # d=calculate_set(1500, 30, 40)
