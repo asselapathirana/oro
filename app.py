@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 import sys
 import dash
-import dash_core_components as dcc
+from dash import dcc
 from dash import  html
 import plotly.graph_objs as go
 import math
 import json
 from dash.exceptions import PreventUpdate
-
+from colorutil import get_color
 
 import numpy as np
 
@@ -15,8 +15,13 @@ import metpy.calc as mc
 from metpy.units import units, concatenate, check_units
 
 from itertools import cycle
-
-app = dash.Dash('Orographic rainfall demo app')
+external_css = [
+    "https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css",
+    "/static/boxed.css",
+    "https://fonts.googleapis.com/css?family=Raleway:400,400i,700,700i",
+    "https://fonts.googleapis.com/css?family=Product+Sans:400,400i,700,700i"]
+app = dash.Dash('Orographic rainfall demo app', 
+external_stylesheets=external_css)
 server = app.server
 value_range = [-5, 5]
 ANIM_DELTAT = 500
@@ -29,14 +34,21 @@ SHAPEFA = 20
 XMAX = XPEAK * 2  #
 XSTEP = 10
 # do one number more than XMAX/XSTEP then have inf on each side.
-XVALUES = np.append(-99999999, np.arange(0, XMAX + .01, XSTEP), 99999999)
+XVALUES = np.arange(0, XMAX + .01, XSTEP)
+XVALUES=np.append(XVALUES, 99999999)
+XVALUES=np.insert(XVALUES, 0, 99999999)
+#print(XVALUES)
 MTNX = np.arange(-XMAX * .01, XMAX * 1.01, 1)
-
+LEGENDFONTSIZE=15
 # symbol size and name
-sym_nop = (10, 'circle', 'No precip.')
-sym_lp = (25, "star", 'Liquid precip.')
-sym_ip = (30, 'hexagram', 'Ice precip.')
-sym_parcel = (50, 'y-right-open', 'Air parcel')
+#sym_nop = (10, 'circle', 'No precip.')
+#sym_lp = (25, "star", 'Liquid precip.')
+#sym_ip = (30, 'hexagram', 'Ice precip.')
+#sym_parcel = (50, 'y-right-open', 'Air parcel')
+sym_t_parcel = (20, '🍃', 'Air parcel') #🌫
+sym_t_nop = (25, '☀', 'No precip.')
+sym_t_lp = (40, "🌧", 'Liquid precip.')
+sym_t_ip = (30, '❆', 'Ice precip.')
 
 banner = html.Div([
     html.H2("Orographic rainfall demo"),
@@ -252,8 +264,9 @@ def load_json(calculation_store_data):
 def update_mainGraph(counterval, calculation_store_data):
     windy, windx, mtny, TC, RH, trace, LCL = load_json(calculation_store_data)
     length = min([counterval, len(XVALUES)])
-    x = [windx[length - 1]]
-    y = [windy[length - 1]]
+    x = [windx[length-1]]
+    y = [windy[length-1]]
+
 
     return {
         'data': [dict({'x': windx[:length], 'y': windy[:length]}, **trace[1]), # all points travelled by air parcel. 
@@ -275,7 +288,7 @@ def update_mainGraph(counterval, calculation_store_data):
                 't': 10,
                 'pad': 4
             },
-            'legend': {'x': .01, 'y': 1.},
+            'legend': {'x': .01, 'y': 1., 'font':{'size':LEGENDFONTSIZE}},
         }
     }
 
@@ -288,44 +301,40 @@ def saveCalc(height, temp, humid):
     TC=TC[1:] 
     RH=RH[1:]
     
-    txt = ["{:.1f} °C/ {:.0f} %".format(t, rh * 100.)
+    txt = ["T={:.1f}°C, RH={:.0f}%".format(t, rh * 100.)
            for t, rh in zip(TC.magnitude, RH.magnitude)]
 
     colorscale = 'Viridis'
 
-    size, symbol, name = zip(*
-                             [sym_nop if v *
-                              units.meters < LCL or x > XPEAK else sym_lp if t > 0 *
-                              units.degC else sym_ip for x, v, t in zip(windx, windy, TC)])
+    size, text, name = zip(*
+                             [sym_t_nop if v *
+                              units.meters < LCL or x > XPEAK else sym_t_lp if t > 0 *
+                              units.degC else sym_t_ip for x, v, t in zip(windx, windy, TC)])
 
-    trace1 = {'mode': 'markers',
-              'marker': {
-                  'size': sym_parcel[0],
-                  'color': 'black',
-                  'symbol': sym_parcel[1], },
+    #print("HHHHHHHHHHHHHHHHHHHHHHHHHHHHH HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH")
+    col_list=get_color(colorscale, RH.magnitude )
+    #print(text, txt, col_list)
+
+
+
+    trace1 = {'mode': 'text',
+              'text': [sym_t_parcel[1]],
+              'textfont': {
+             'size': sym_t_parcel[0],
+             'color': 'black'
+            },
               'showlegend': False,
               'hoverinfo': 'none',
               }
-    trace2 = {'mode': 'markers',
-              'marker': {
-                  'symbol': symbol,
-                  'size': size,
-                  'opacity': 1.0,
-                  'color': (RH.magnitude * 100.).tolist(),  # no numpy
-                  'colorscale': colorscale,
-                  'cmin': 0,
-                  'cmax': 100.,
-                  'reversescale': True,
-                  'colorbar': {'title': 'RH (%)'},
-                  #   'line': {
-                  #       'width': 0.5,
-                  #       'color': 'black'
-                  #   }
-              },
-              'text': txt,
-              'hoverinfo': 'text',
+    trace2 = {'mode': 'text',
+              'text': text,
+              'textfont': {
+                    'size': size,
+                    'color': col_list,
+                },
+              'customdata': txt,
+              'hovertemplate':'%{customdata}',
               'showlegend': False,
-
               }
     trace3 = {
         'fill': 'tozeroy',
@@ -337,19 +346,21 @@ def saveCalc(height, temp, humid):
     tr = [{'mode': 'markers',  # to create the legend.
            'marker': {
                'symbol': x[1],
-               'size': 15,
-               'color': 'black',
+               'opacity':1.0,
+               'size': 0,
+               'color': 'white',
            },
-           'line': {
-               'color': 'rgb(231, 99, 250)',
-               'width': 2
-           },
-           'name': x[2],
+           #'text': [x[1]],
+           #'line': {
+           #    'color': 'rgb(231, 99, 250)',
+           #    'width': 2
+           #},
+           'name': f"{x[1]}  {x[2]}",
            'showlegend': True,
            }
-          for x in [sym_parcel, sym_nop, sym_lp, sym_ip]
+          for x in [sym_t_parcel, sym_t_nop, sym_t_lp, sym_t_ip]
           ]
-
+    #print(tr)
     trlcl = [
         dict(
             mode='lines+text',
@@ -363,14 +374,16 @@ def saveCalc(height, temp, humid):
             showlegend=False,
         )]
 
-    trace = [trace1, trace2, trace3] + tr + trlcl
+
+
+    trace = [trace1, trace2, trace3] + tr + trlcl 
     RH = RH * 100.
     return windy.tolist(), windx.tolist(), mtny.tolist(), TC.magnitude.tolist(
     ), RH.magnitude.tolist(), trace, LCL.to("meters").magnitude  # no numpy
 
 
 def atmCalc(height, temp, humid):
-    print("ATMCALC", height, temp, humid, file=sys.stderr)
+    #print("ATMCALC", height, temp, humid, file=sys.stderr)
     mtny = windh(MTNX, height, ratio=1,
                  yoffset=0)
 
@@ -437,17 +450,11 @@ def windh(
     return maxht * ratio / (1 + ((val - xoffset) / div) ** 2.) + yoffset
 
 
-# load the styles
-external_css = [
-    "https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css",
-    "/static/boxed.css",
-    "https://fonts.googleapis.com/css?family=Raleway:400,400i,700,700i",
-    "https://fonts.googleapis.com/css?family=Product+Sans:400,400i,700,700i"]
-for css in external_css:
-    app.css.append_css({"external_url": css})
+#for css in external_css:
+#    app.css.append_css({"external_url": css})
 
 if __name__ == '__main__':
-    app.run_server(debug=False)
+    app.run_server(debug=True)
     #, use_debugger=False, use_reloader=False)
     # d=calculate_set(3.897692586860594*1000, 25, 20)
     # d=calculate_set(1500, 25, 50)

@@ -2,3 +2,4 @@ junk/
 env/
 .idea/
 *.old/
+__pycache__/
