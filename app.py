@@ -17,10 +17,9 @@ from metpy.units import units, concatenate, check_units
 from itertools import cycle
 external_css = [
     "https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css",
-    "/static/boxed.css",
     "https://fonts.googleapis.com/css?family=Raleway:400,400i,700,700i",
     "https://fonts.googleapis.com/css?family=Product+Sans:400,400i,700,700i"]
-app = dash.Dash('Orographic rainfall demo app', 
+app = dash.Dash(__name__, 
 external_stylesheets=external_css)
 server = app.server
 value_range = [-5, 5]
