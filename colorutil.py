@@ -1,4 +1,4 @@
-def get_color(colorscale_name, loc):
+def get_color(colorscale_name, loc, reverse=False):
     from _plotly_utils.basevalidators import ColorscaleValidator
     # first parameter: Name of the property being validated
     # second parameter: a string, doesn't really matter in our use case
@@ -7,7 +7,7 @@ def get_color(colorscale_name, loc):
     colorscale = cv.validate_coerce(colorscale_name)
     
     if hasattr(loc, "__iter__"):
-        return [get_continuous_color(colorscale, x) for x in loc]
+        return [get_continuous_color(colorscale, 1-x if reverse else x) for x in loc]
     return get_continuous_color(colorscale, loc)
         
 

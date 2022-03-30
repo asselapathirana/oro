@@ -277,6 +277,7 @@ def update_mainGraph(counterval, calculation_store_data):
                  dict({'x': ['null'], 'y': ['null']}, **trace[5]), # legend (fake data)
                  dict({'x': ['null'], 'y': ['null']}, **trace[6]), # legend (fake data)
                  dict({'x': [0, XMAX / 3., XMAX * 2. / 3., XMAX], 'y': [LCL, LCL, LCL, LCL]}, **trace[7]), # lcl 
+                 dict({'x': ['null'], 'y': ['null']}, **trace[8]), # legend (fake data)
                  ],
         'layout': {
             'xaxis': {'range': [0, XMAX * 1.05], 'title': 'Distance (km)'},
@@ -312,8 +313,8 @@ def saveCalc(height, temp, humid):
                               units.degC else sym_t_ip for x, v, t in zip(windx, windy, TC)])
 
     #print("HHHHHHHHHHHHHHHHHHHHHHHHHHHHH HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH")
-    col_list=get_color(colorscale, RH.magnitude )
-    #print(text, txt, col_list)
+    col_list=get_color(colorscale, RH.magnitude, reverse=True ) ## we use reversed colors
+    print(text, txt, col_list)
 
 
 
@@ -375,8 +376,30 @@ def saveCalc(height, temp, humid):
         )]
 
 
+    dummytrace_forcolorbar= {'mode': 'markers',
+              'marker': {
+                  #'symbol': symbol,
+                  #'size': size,
+                  #'opacity': 1.0,
+                  #'color': (RH.magnitude * 100.).tolist(),  # no numpy
+                  'colorscale': colorscale,
+                  'cmin': 0,
+                  'cmax': 100.,
+                  'reversescale': True,
+                  'colorbar': {'title': 'RH (%)'},
+                  #   'line': {
+                  #       'width': 0.5,
+                  #       'color': 'black'
+                  #   }
+              },
+              'text': txt,
+              'hoverinfo': 'text',
+              'showlegend': False,
 
-    trace = [trace1, trace2, trace3] + tr + trlcl 
+              }
+
+
+    trace = [trace1, trace2, trace3] + tr + trlcl  + [dummytrace_forcolorbar]
     RH = RH * 100.
     return windy.tolist(), windx.tolist(), mtny.tolist(), TC.magnitude.tolist(
     ), RH.magnitude.tolist(), trace, LCL.to("meters").magnitude  # no numpy
