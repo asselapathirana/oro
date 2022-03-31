@@ -49,6 +49,12 @@ sym_t_nop = (25, '☀', 'No precip.')
 sym_t_lp = (40, "🌧", 'Liquid precip.')
 sym_t_ip = (30, '❆', 'Ice precip.')
 
+REF=dcc.Markdown('Details: Pathirana, A., Herath, S., and Yamada, T.: Simulating orographic rainfall with a limited-area, \
+     non-hydrostatic atmospheric model under idealized forcing, Atmos. Chem. Phys., 5, 215-226, \
+    [https://doi.org/10.5194/acp-5-215-2005](https://doi.org/10.5194/acp-5-215-2005), 2005. \
+     [PDF](https://acp.copernicus.org/articles/5/215/2005/acp-5-215-2005.pdf) ')
+
+print(REF)
 banner = html.Div([
     html.H2("Orographic rainfall demo"),
     html.Img(src=app.get_asset_url("apLogo2.png")),
@@ -138,10 +144,16 @@ row2 = html.Div([  # begin row 2
     button,
 ], className="row")  # end row 2
 
+row3=html.Div([
+    html.P(REF)
+
+], className="row")
+
 app.layout = html.Div([  # begin container
     banner,
     row1,
     row2,
+    row3,
 ], className="container",
 )  # end container
 
