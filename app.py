@@ -54,7 +54,7 @@ REF=dcc.Markdown('Details: Pathirana, A., Herath, S., and Yamada, T.: Simulating
     [https://doi.org/10.5194/acp-5-215-2005](https://doi.org/10.5194/acp-5-215-2005), 2005. \
      [PDF](https://acp.copernicus.org/articles/5/215/2005/acp-5-215-2005.pdf) ')
 
-print(REF)
+#print(REF)
 banner = html.Div([
     html.H2("Orographic rainfall demo"),
     html.Img(src=app.get_asset_url("apLogo2.png")),
@@ -325,7 +325,7 @@ def saveCalc(height, temp, humid):
 
     #print("HHHHHHHHHHHHHHHHHHHHHHHHHHHHH HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH")
     col_list=get_color(colorscale, RH.magnitude, reverse=True ) ## we use reversed colors
-    print(text, txt, col_list)
+    #print(text, txt, col_list)
 
 
 
