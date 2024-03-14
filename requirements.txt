@@ -1,8 +1,7 @@
-Werkzeug==2.2.2
-dash==2.7.1
-dash-bootstrap-components==1.2.1
-numpy==1.24.0
-MetPy==1.3.1
+dash
+dash-bootstrap-components
+numpy
+MetPy
 gunicorn
 waitress
 gevent
